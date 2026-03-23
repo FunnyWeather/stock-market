@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+    <style>
+
+    </style>
+
+    <body>
+        <h3> Stock Market (simulator) Manager </h3>
+    </body>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
+        import { getFirestore, getDoc, doc, onSnapshot, collection, query, orderBy, setDoc, increment} from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
+
+        import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-analytics.js";
+
+
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDn7dIOzh2esH_pM4xRZHc98XiurA7H7FY",
+            authDomain: "stockmarket-22900.firebaseapp.com",
+            projectId: "stockmarket-22900",
+            storageBucket: "stockmarket-22900.firebasestorage.app",
+            messagingSenderId: "853330105685",
+            appId: "1:853330105685:web:f518ef91b9df54d1ec0bdc",
+            measurementId: "G-X47GFP55D2"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const analytics = getAnalytics(app);
+        const db = getFirestore(app);
+
+
+
+        var stocks = {
+
+        };
+
+
+
+        let stockElements = {
+
+        }
+
+        const delay = ms => new Promise(res => setTimeout(res, ms));
+
+        onSnapshot(query(collection(db, "stocks"), orderBy("cost")), snapshot => {
+            snapshot.forEach(docSnap => {
+                const data = docSnap.data();
+
+                stocks[docSnap.id] = data;
+            })
+        });
+
+        await delay(5000);
+
+        for (let key in stocks) {
+            let stockElement = document.createElement("p");
+            stockElement.textContent = `Price: ${stocks[key].cost}, stocks left: ${stocks[key].supply}`;
+
+            stockElements[key] = stockElement;
+            document.body.appendChild(stockElement)
+        }
+
+        function CalculateNewStockPrice(stock) {
+            const oldPrice = stock.cost;
+            const demand = stock.demand;
+            const supply = stock.supply;
+            const multiplier = 0.4 + (demand / supply) ** 3; // change multiplier, with curve
+            
+            return oldPrice * (1 + (demand / supply) * multiplier)
+        }
+
+        function Step() {
+            for (let key in stocks) {
+                let stock = stocks[key];
+                const priceChange = Math.trunc(CalculateNewStockPrice(stock) * 10 * 10) / 100;
+
+                stock.cost = priceChange;
+                stock.supply -= stock.demand;
+                stock.demand = 0;
+
+                setDoc(doc(db, "stocks", key), stock);
+                console.log(stock)
+
+                stockElements[key].textContent = `Price: ${Math.trunc(stocks[key].cost * 10 * 10) / 100}, stocks left: ${stocks[key].supply}`;
+            }
+        }
+
+        setInterval(() => {
+            Step()
+        }, 10000);
+        
+    </script>
+</html>

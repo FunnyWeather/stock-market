@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html>
+    <style>
+
+    </style>
+
+    <body>
+        <h3> Stock Market (simulator) Manager </h3>
+        <h3 id="statusText"></h3>
+            
+        <p id="money"></p>
+
+        <input id="stockInput" placeholder="which stock to view">
+        <button id="stockButton"> view stock history </button>
+        <canvas id="stockChart" width="500" height="500" style="display: block;"></canvas>
+    </body>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
+        import { getFirestore, getDoc, doc, onSnapshot, collection, query, orderBy, setDoc, increment} from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
+
+        import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-analytics.js";
+
+
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDn7dIOzh2esH_pM4xRZHc98XiurA7H7FY",
+            authDomain: "stockmarket-22900.firebaseapp.com",
+            projectId: "stockmarket-22900",
+            storageBucket: "stockmarket-22900.firebasestorage.app",
+            messagingSenderId: "853330105685",
+            appId: "1:853330105685:web:f518ef91b9df54d1ec0bdc",
+            measurementId: "G-X47GFP55D2"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const analytics = getAnalytics(app);
+        const db = getFirestore(app);
+
+        const statusText = document.getElementById("statusText");
+        const moneyText = document.getElementById("money");
+        const chartInput = document.getElementById("stockInput");
+        const chartButton = document.getElementById("stockButton");
+        const chartCanvas = document.getElementById("stockChart");
+        const ctx = chartCanvas.getContext("2d");
+
+        chartButton.addEventListener("click", () => {
+            if (createdPriceArray != true) {
+                statusText.textContent = "no values to plot (game refreshes every 10 seconds)"
+            }
+
+            const x = stockPricePast[chartInput.value]["x"];
+            const y = stockPricePast[chartInput.value]["y"];
+
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: x,
+                    datasets: [{
+                    label: 'My Data',
+                    data: y,
+                    tension: 0.3
+                    }]
+                }
+            });
+        });
+
+        let createdStockElements = false;
+        let createdPriceArray = false;
+
+        let money = 1000;
+
+        let numberOfDatapoints = 0;
+
+        var owned = {
+
+        };
+
+        var stocks = {
+
+        };
+
+        let stockElements = {
+
+        };
+
+        let stockPricePast = {
+            // have dictionaries of { x: [], y: [] }
+        }
+
+        const delay = ms => new Promise(res => setTimeout(res, ms));
+
+        onSnapshot(query(collection(db, "stocks"), orderBy("cost")), snapshot => {
+            numberOfDatapoints += 1
+            snapshot.forEach(docSnap => {
+                const data = docSnap.data();
+
+                stocks[docSnap.id] = data;
+
+                if (createdStockElements){
+                    for (let key in stocks) {
+                        stockElements[key].children[0].textContent = `Price: ${ trunc(stocks[key].cost, 2) }, stocks left: ${stocks[key].supply}`;
+                    }
+                }
+
+                if (createdPriceArray){
+                    stockPricePast[docSnap.id]["x"].push(numberOfDatapoints)
+                    stockPricePast[docSnap.id]["y"].push(trunc(stocks[docSnap.id].cost, 2))
+                } else {
+                    stockPricePast[docSnap.id] = {
+                        x: [],
+                        y: []
+                    }
+
+                    createdPriceArray = true;
+                }
+            })
+        });
+
+        await delay(5000);
+
+        createdStockElements = true;
+
+        for (let key in stocks) {
+            let stockDiv = document.createElement("div");
+            let stockTextElement = document.createElement("p");
+            stockTextElement.textContent = `Price: ${ trunc(stocks[key].cost, 2) }, stocks left: ${stocks[key].supply}`;
+
+            let stockBuyInput = document.createElement("input");
+            stockBuyInput.placeholder = "how many of stock to buy";
+
+            let stockBuyButton = document.createElement("button");
+            stockBuyButton.textContent = "buy stock";
+            stockBuyButton.dataset.stockToBuy = key;
+            stockBuyButton.onclick = async () => {
+                let amountToBuy = stockElements[key].children[1].value;
+
+                const data = stocks[key];
+
+                const cost = data.cost * amountToBuy;
+
+                if (cost > money) {
+                    statusText.textContent = "not enough money";
+                    return;
+                }
+
+                money -= cost;
+                owned[key] += amountToBuy;
+
+                statusText.textContent = "";
+
+                setDoc(doc(db, "stocks", key), {demand: increment(amountToBuy)}, {merge: true});
+                moneyText.textContent = money;
+            }
+
+            let stockSellButton = document.createElement("button");
+            stockSellButton.textContent = "sell stock";
+            stockSellButton.dataset.stockToSell = key;
+            stockSellButton.onclick = async () => {
+                let amountToSell = stockElements[key].children[1].value;
+
+                const data = stocks[key];
+
+                const cost = data.cost * amountToSell;
+
+                if (amountToSell > owned[key]) {
+                    statusText.textContent = "not enough to sell";
+                    return;
+                }
+
+                money += cost;
+                owned[key] -= amountToSell;
+
+                statusText.textContent = "";
+
+                setDoc(doc(db, "stocks", key), {demand: increment(-amountToSell)}, {merge: true});
+                moneyText.textContent = money;
+            }
+
+            stockDiv.appendChild(stockTextElement);
+            stockDiv.appendChild(stockBuyInput);
+            stockDiv.appendChild(stockBuyButton);
+            stockDiv.appendChild(stockSellButton);
+
+            stockElements[key] = stockDiv
+            document.body.appendChild(stockDiv)
+        }
+
+        function trunc(value, places) {
+            const multiplier = Math.pow(10, places)
+
+            return Math.trunc(value * multiplier) / multiplier
+        }
+        
+    </script>
+</html>
