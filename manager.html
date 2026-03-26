@@ -6,6 +6,9 @@
 
     <body>
         <h3> Stock Market (simulator) Manager </h3>
+
+        <input id="command" placeholder="command here">
+        <button id="run"> run </button>
     </body>
 
     <script type="module">
@@ -30,7 +33,17 @@
         const analytics = getAnalytics(app);
         const db = getFirestore(app);
 
+        const commandInput = document.getElementById("command");
+        const runButton = document.getElementById("run");
 
+        runButton.addEventListener("click", () => {
+            const parts = commandInput.split(" ");
+
+            if (parts[0] == "set") {
+                set(doc(db, parts[1], parts[2]), parts[3], true);
+                commandInput.textContent = $"set doc ${parts[1]}/${parts[2]} to ${parts[3]}"
+            }
+        });
 
         var stocks = {
 
@@ -85,6 +98,10 @@
 
                 stockElements[key].textContent = `Price: ${Math.trunc(stocks[key].cost * 10 * 10) / 100}, stocks left: ${stocks[key].supply}`;
             }
+        }
+
+        function set(ref, json, doMerge) {
+            setDoc(ref, json, {merge: doMerge};
         }
 
         setInterval(() => {
