@@ -101,6 +101,7 @@
                 if (createdStockElements){
                     for (let key in stocks) {
                         stockElements[key].children[0].textContent = `Price: ${ trunc(stocks[key].cost, 2) }, stocks left: ${stocks[key].supply}`;
+                        void stockElements[key].children[0].offsetWidth;
                     }
                 }
 
