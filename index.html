@@ -176,7 +176,7 @@
                 statusText.textContent = "";
 
                 setDoc(doc(db, "stocks", key), {demand: increment(-amountToSell)}, {merge: true});
-                moneyText.textContent = money;
+                moneyText.textContent = money + JSON.Stringify(owned);
             }
 
             stockDiv.appendChild(stockTextElement);
